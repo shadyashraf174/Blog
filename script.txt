@@ -1,0 +1,339 @@
+# Unit Test Documentation
+
+## 1. Data Validation Tests
+
+### Test 1: SeedData_ContainsExactlyThreeBlogPosts
+**Shortcoming:** Data integrity verification  
+**Description:** Verifies the database contains exactly 3 blog posts after seeding  
+**Example:** "After seeding, the database should contain exactly 3 blog posts"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void SeedData_ContainsExactlyThreeBlogPosts()
+{
+    var postCount = _context.BlogPosts.Count();
+    Assert.AreEqual(3, postCount);
+}
+```
+
+### Test 2: SeedData_Post1_HasExactlyThreeComments
+**Shortcoming:** Data consistency verification  
+**Description:** Checks Post1 has exactly 3 comments as specified  
+**Example:** "Post titled 'Post1' should contain exactly 3 comments"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void SeedData_Post1_HasExactlyThreeComments()
+{
+    var commentCount = _context.BlogPosts
+        .Include(p => p.Comments)
+        .First(p => p.Title == "Post1")
+        .Comments.Count;
+    Assert.AreEqual(3, commentCount);
+}
+```
+
+### Test 3: SeedData_Post2_HasExactlyTwoComments
+**Shortcoming:** Data consistency verification  
+**Description:** Verifies Post2 has exactly 2 comments  
+**Example:** "Post titled 'Post2' should contain exactly 2 comments"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void SeedData_Post2_HasExactlyTwoComments()
+{
+    var commentCount = _context.BlogPosts
+        .Include(p => p.Comments)
+        .First(p => p.Title == "Post2")
+        .Comments.Count;
+    Assert.AreEqual(2, commentCount);
+}
+```
+
+### Test 4: SeedData_Post3_HasExactlyFourComments
+**Shortcoming:** Data consistency verification  
+**Description:** Ensures Post3 has exactly 4 comments  
+**Example:** "Post titled 'Post3' should contain exactly 4 comments"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void SeedData_Post3_HasExactlyFourComments()
+{
+    var commentCount = _context.BlogPosts
+        .Include(p => p.Comments)
+        .First(p => p.Title == "Post3")
+        .Comments.Count;
+    Assert.AreEqual(4, commentCount);
+}
+```
+
+### Test 5: SeedData_AllCommentsHaveValidDates
+**Shortcoming:** Date validation  
+**Description:** Confirms no comments have future dates  
+**Example:** "All comments should have creation dates in the past"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void SeedData_AllCommentsHaveValidDates()
+{
+    var invalidDates = _context.BlogComments
+        .Where(c => c.CreatedDate > DateTime.Now)
+        .ToList();
+    Assert.AreEqual(0, invalidDates.Count);
+}
+```
+
+## 2. Query Tests
+
+### Test 6: Query1_CountCommentsPerUser_PetrHasTwoComments
+**Shortcoming:** Complex query verification  
+**Description:** Validates comment count for user Petr  
+**Example:** "User 'Petr' should have exactly 2 comments"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void Query1_CountCommentsPerUser_PetrHasTwoComments()
+{
+    var petrComments = _context.BlogPosts
+        .SelectMany(p => p.Comments)
+        .Count(c => c.UserName == "Petr");
+    Assert.AreEqual(2, petrComments);
+}
+```
+
+### Test 7: Query1_CountCommentsPerUser_ElenaHasThreeComments
+**Shortcoming:** Complex query verification  
+**Description:** Validates comment count for user Elena  
+**Example:** "User 'Elena' should have exactly 3 comments"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void Query1_CountCommentsPerUser_ElenaHasThreeComments()
+{
+    var elenaComments = _context.BlogPosts
+        .SelectMany(p => p.Comments)
+        .Count(c => c.UserName == "Elena");
+    Assert.AreEqual(3, elenaComments);
+}
+```
+
+### Test 8: Query1_CountCommentsPerUser_IvanHasFourComments
+**Shortcoming:** Complex query verification  
+**Description:** Validates comment count for user Ivan  
+**Example:** "User 'Ivan' should have exactly 4 comments"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void Query1_CountCommentsPerUser_IvanHasFourComments()
+{
+    var ivanComments = _context.BlogPosts
+        .SelectMany(p => p.Comments)
+        .Count(c => c.UserName == "Ivan");
+    Assert.AreEqual(4, ivanComments);
+}
+```
+
+### Test 9: Query2_PostsOrderedByLastCommentDate_CorrectOrder
+**Shortcoming:** Sorting verification  
+**Description:** Checks post ordering by most recent comment  
+**Example:** "Posts should be ordered as Post2, Post1, Post3 by last comment date"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void Query2_PostsOrderedByLastCommentDate_CorrectOrder()
+{
+    var orderedPosts = _context.BlogPosts
+        .Select(p => new {
+            p.Title,
+            LastCommentDate = p.Comments.Max(c => c.CreatedDate)
+        })
+        .OrderByDescending(p => p.LastCommentDate)
+        .Select(p => p.Title)
+        .ToList();
+    CollectionAssert.AreEqual(
+        new List<string> { "Post2", "Post1", "Post3" },
+        orderedPosts
+    );
+}
+```
+
+### Test 10: Query3_CountLastCommentsPerUser_IvanHasTwo
+**Shortcoming:** Complex query verification  
+**Description:** Validates count of most recent comments by Ivan  
+**Example:** "User 'Ivan' should have 2 most recent comments across posts"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void Query3_CountLastCommentsPerUser_IvanHasTwo()
+{
+    var ivanLastComments = _context.BlogPosts
+        .Select(p => p.Comments
+            .OrderByDescending(c => c.CreatedDate)
+            .First())
+        .Count(c => c.UserName == "Ivan");
+    Assert.AreEqual(2, ivanLastComments);
+}
+```
+
+### Test 11: Query_Performance_GetAllPostsUnder50ms
+**Shortcoming:** Performance verification  
+**Description:** Ensures post retrieval meets performance requirements  
+**Example:** "Getting all posts should complete in under 50ms"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void Query_Performance_GetAllPostsUnder50ms()
+{
+    var stopwatch = new Stopwatch();
+    stopwatch.Start();
+    var posts = _context.BlogPosts.ToList();
+    stopwatch.Stop();
+    Assert.IsTrue(stopwatch.ElapsedMilliseconds < 50);
+}
+```
+
+## 3. CRUD Operation Tests
+
+### Test 12: Create_NewBlogPost_SavesToDatabase
+**Shortcoming:** Create operation verification  
+**Description:** Tests blog post creation persistence  
+**Example:** "New post 'New Post' should be saved to database"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void Create_NewBlogPost_SavesToDatabase()
+{
+    var newPost = new BlogPost("New Post");
+    _context.BlogPosts.Add(newPost);
+    _context.SaveChanges();
+    Assert.IsTrue(_context.BlogPosts.Any(p => p.Title == "New Post"));
+}
+```
+
+### Test 13: Create_NewComment_SavesToDatabase
+**Shortcoming:** Create operation verification  
+**Description:** Tests comment creation persistence  
+**Example:** "New comment 'New Comment' should be saved to database"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void Create_NewComment_SavesToDatabase()
+{
+    var post = _context.BlogPosts.First();
+    var newComment = new BlogComment("New Comment", DateTime.Now, "TestUser");
+    post.Comments.Add(newComment);
+    _context.SaveChanges();
+    Assert.IsTrue(_context.BlogComments.Any(c => c.Text == "New Comment"));
+}
+```
+
+### Test 14: Update_BlogPostTitle_UpdatesInDatabase
+**Shortcoming:** Update operation verification  
+**Description:** Tests post title update persistence  
+**Example:** "Post title should update to 'Updated Title' in database"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void Update_BlogPostTitle_UpdatesInDatabase()
+{
+    var post = _context.BlogPosts.First();
+    var newTitle = "Updated Title";
+    post.Title = newTitle;
+    _context.SaveChanges();
+    Assert.AreEqual(newTitle, _context.BlogPosts.Find(post.Id).Title);
+}
+```
+
+### Test 15: Delete_BlogPost_RemovesFromDatabase
+**Shortcoming:** Delete operation verification  
+**Description:** Tests post deletion from database  
+**Example:** "Deleted post should no longer exist in database"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void Delete_BlogPost_RemovesFromDatabase()
+{
+    var post = _context.BlogPosts.First();
+    _context.BlogPosts.Remove(post);
+    _context.SaveChanges();
+    Assert.IsFalse(_context.BlogPosts.Any(p => p.Id == post.Id));
+}
+```
+
+## 4. Relationship Tests
+
+### Test 16: BlogComment_BlogPostNavigation_IsCorrect
+**Shortcoming:** Navigation property verification  
+**Description:** Tests comment to post navigation  
+**Example:** "Comment should correctly reference its parent post"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void BlogComment_BlogPostNavigation_IsCorrect()
+{
+    var comment = _context.BlogComments
+        .Include(c => c.BlogPost)
+        .First();
+    Assert.IsNotNull(comment.BlogPost);
+    Assert.AreEqual(comment.BlogPostId, comment.BlogPost.Id);
+}
+```
+
+### Test 17: BlogPost_CommentsNavigation_IsCorrect
+**Shortcoming:** Navigation property verification  
+**Description:** Tests post to comments navigation  
+**Example:** "Post should correctly reference all its comments"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void BlogPost_CommentsNavigation_IsCorrect()
+{
+    var post = _context.BlogPosts
+        .Include(p => p.Comments)
+        .First();
+    Assert.IsNotNull(post.Comments);
+    Assert.IsTrue(post.Comments.All(c => c.BlogPostId == post.Id));
+}
+```
+
+### Test 18: BlogPost_WithNoComments_ReturnsEmptyCollection
+**Shortcoming:** Empty collection handling  
+**Description:** Tests behavior of posts with no comments  
+**Example:** "New post with no comments should return empty collection"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void BlogPost_WithNoComments_ReturnsEmptyCollection()
+{
+    var newPost = new BlogPost("Empty Post");
+    _context.BlogPosts.Add(newPost);
+    _context.SaveChanges();
+    var comments = _context.Entry(newPost)
+        .Collection(p => p.Comments)
+        .Query()
+        .ToList();
+    Assert.AreEqual(0, comments.Count);
+}
+```
+
+## 5. JSON Output Test
+
+### Test 19: JsonOutput_ContainsAllPostTitles
+**Shortcoming:** Serialization verification  
+**Description:** Tests JSON serialization of post titles  
+**Example:** "Serialized JSON should contain all post titles"  
+**Test Method:**
+```csharp
+[TestMethod]
+public void JsonOutput_ContainsAllPostTitles()
+{
+    var json = System.Text.Json.JsonSerializer.Serialize(
+        _context.BlogPosts.Select(p => p.Title).ToList()
+    );
+    Assert.IsTrue(json.Contains("Post1"));
+    Assert.IsTrue(json.Contains("Post2"));
+    Assert.IsTrue(json.Contains("Post3"));
+}
+```
+
+---
